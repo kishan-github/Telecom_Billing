@@ -30,7 +30,7 @@ OBJDIR = ../obj/
 BIN = ../bin/
 
 # define the C source files
-SRCS = main.c
+SRCS = main.c socket.c
 
 # define the C object files 
 #
@@ -43,10 +43,10 @@ SRCS = main.c
 OBJS = $(SRCS:%.c=$(OBJDIR)%.o)
 
 # define the executable file 
-MAIN = $(BIN)mycc
+MAIN = $(BIN)server
 
 all:  $(MAIN)
-	@echo  Simple compiler named mycc has been compiled
+	@echo  Simple compiler named server has been compiled
 
 $(MAIN): $(OBJS) 
 	$(CC) $(CFLAGS) $(INCLUDES) -o $(MAIN) $(OBJS) $(LFLAGS) $(LIBS)
