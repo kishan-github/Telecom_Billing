@@ -9,6 +9,9 @@ CC = gcc
 # define any compile-time flags
 CFLAGS = -Wall -g
 
+# define other flags
+TFLAGS = -pthread
+
 # define any directories containing header files other than /usr/include
 #
 INCLUDES = -I../include
@@ -49,7 +52,7 @@ all:  $(MAIN)
 	@echo  Simple compiler named server has been compiled
 
 $(MAIN): $(OBJS) 
-	$(CC) $(CFLAGS) $(INCLUDES) -o $(MAIN) $(OBJS) $(LFLAGS) $(LIBS)
+	$(CC) $(TFLAGS) $(CFLAGS) $(INCLUDES) -o $(MAIN) $(OBJS) $(LFLAGS) $(LIBS)
 
 # this is a suffix replacement rule for building .o's from .c's
 # it uses automatic variables $<: the name of the prerequisite of

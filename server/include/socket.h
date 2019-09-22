@@ -6,8 +6,10 @@
 #include <netinet/in.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <string.h>
 
-#define FAILURE -1
+#define FAILURE 0
+#define SUCCESS 1
 #define MAX_CLIENT 5
 
 #define ERROR_CHECK(status, msg)	\
@@ -17,6 +19,20 @@
 			return FAILURE;	\
 		}
 
-int create_socket(char *argv[]);
+#define READ(sock_fd, buffer)		\
+		if(read(sock_fd, buffer, sizeof(buffer)) < 0)	\
+		{	\
+			printf("\nRead failed.");	\
+			return NULL;	\
+		}
+
+#define WRITE(sock_fd, buffer)		\
+		if(write(sock_fd, buffer, sizeof(buffer)) < 0)	\
+		{	\
+			printf("\nWrite failed.");	\
+			return NULL;	\
+		}
+
+int create_socket(char *argv, int *socket_fd);
 
 #endif
