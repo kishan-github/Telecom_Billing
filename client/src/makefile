@@ -30,7 +30,7 @@ OBJDIR = ../obj/
 BIN = ../bin/
 
 # define the C source files
-SRCS = main.c socket.c
+SRCS = main.c socket.c client_utilities.c
 
 # define the C object files 
 #

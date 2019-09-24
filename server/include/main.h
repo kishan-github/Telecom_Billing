@@ -1,12 +1,10 @@
 #ifndef MAIN_H
 #define MAIN_H
 
-#include <pthread.h>
+#include <stdio.h>
+#include <unistd.h>
 
-#define MAX_LEN 1000
-
-int init(char *argv);
-int start_server();
-void *subroutine(void * connfd);
+#define FAILURE 0
+#define SUCCESS 1
 
 #endif

@@ -1,9 +1,10 @@
 #ifndef MAIN_H
 #define MAIN_H
 
-#define MAX_LEN 1000
+#include <stdio.h>
+#include <unistd.h>
 
-int init(char *argv);
-int start_client_app();
+#define FAILURE 0
+#define SUCCESS 1
 
 #endif
