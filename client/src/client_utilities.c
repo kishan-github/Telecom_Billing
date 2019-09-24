@@ -1,8 +1,10 @@
 #include <client_utilities.h>
 #include <socket.h>
 
+// Variable to store the socket id of the link.
 int socket_fd = 0;
 
+// Initialize the objects.
 int init(char *argv)
 {
 	// Create the socket.
@@ -15,6 +17,7 @@ int init(char *argv)
 	return SUCCESS;
 }
 
+// Start the client app.
 int start_client_app()
 {
 	char buffer[MAX_LEN];

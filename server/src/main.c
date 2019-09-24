@@ -1,8 +1,10 @@
 #include <main.h>
 #include <server_utilities.h>
 
+// Variable to store the socket id used to create link.
 extern int socket_fd;
 
+// Main function.
 int main(int argc, char *argv[])
 {
 	printf("\n/************** Server Window *************/");
@@ -14,7 +16,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	// initialize the required things.
+	// initialize the required objects.
 	if(init(argv[1]) == FAILURE)
 	{
 		printf("\nInitialization of objects failed.");
@@ -29,6 +31,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
+	// Close the socket before finishing.
 	close(socket_fd);
 
 	return 0;

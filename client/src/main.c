@@ -1,8 +1,10 @@
 #include <main.h>
 #include <client_utilities.h>
 
+// Variable to store the socket id of the link.
 extern int socket_fd;
 
+// Main function.
 int main(int argc, char *argv[])
 {
 	printf("\n /************** Client Window ***************/");
@@ -22,8 +24,15 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	start_client_app();
+	// Start the client app.
+	if(start_client_app() == FAILURE)
+	{
+		printf("\nSomething went wrong. Closing the application.");
+		close(socket_fd);
+		return 0;
+	}
 
+	// Close the socket before ending.
 	close(socket_fd);
 
 	return 0;
