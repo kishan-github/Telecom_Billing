@@ -3,6 +3,7 @@
 
 // Variable to store the socket id used to create link.
 extern int socket_fd;
+extern MYSQL *mysql;
 
 // Main function.
 int main(int argc, char *argv[])
@@ -33,6 +34,7 @@ int main(int argc, char *argv[])
 
 	// Close the socket before finishing.
 	close(socket_fd);
+	mysql_close(mysql);
 
 	return 0;
 }

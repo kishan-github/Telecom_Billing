@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
 	}
 
 	// Start the client app.
-	if(start_client_app() == FAILURE)
+	if(start_client_app(argv[2]) == FAILURE)
 	{
 		printf("\nSomething went wrong. Closing the application.");
 		close(socket_fd);

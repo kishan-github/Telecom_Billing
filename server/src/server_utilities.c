@@ -3,6 +3,7 @@
 
 // Variable to store the socket id of the link.
 int socket_fd = 0;
+MYSQL *mysql = NULL;
 
 // Method to initialize the objects.
 int init(char *argv)
@@ -10,9 +11,37 @@ int init(char *argv)
 	// create a socket for communication with client.
         if(create_socket(argv, &socket_fd) == FAILURE)
         {
-                printf("\nSocket creation failed.");
+                PRINT("Socket creation failed.");
                 return FAILURE;
         }
+        else
+        	PRINT("Socket created successfully.");
+
+        // initialize the database.
+        if(init_database() == FAILURE)
+        {
+        	PRINT("Database initialization failed.");
+        	return FAILURE;
+        }
+
+	return SUCCESS;
+}
+
+// Create the database and initialize it.
+int init_database()
+{
+	// Init sql.
+	mysql = mysql_init(NULL);
+
+	/*connect with the database*/
+	if (!mysql_real_connect(mysql, SERVER, USER, PASSWORD, DATABASE, 0, NULL, 0))
+	{
+		fprintf(stderr, "%s\n", mysql_error(mysql));
+		mysql_close(mysql);
+		return FAILURE;
+	}
+	else
+		PRINT("Successfully connected to database.");
 
 	return SUCCESS;
 }
@@ -30,7 +59,7 @@ int start_server()
 	// Keep running the server.
 	while(1)
 	{
-		printf("\nWaiting for client connection...\n");
+		PRINT("Waiting for client connection...\n");
 
 		for (index = 0; index < MAX_CLIENT; index++)
 		{
@@ -38,7 +67,7 @@ int start_server()
 			connection_fd[index] = accept(socket_fd, (struct sockaddr*)&client_addr, &address_length);
 			if(connection_fd[index] < 0)
 			{
-				printf("\nAccept failed.");
+				PRINT("Accept failed.");
 				return FAILURE;
 			}
 
@@ -46,7 +75,7 @@ int start_server()
 			status = pthread_create(&tid[index], NULL, subroutine, (void *)&connection_fd[index]);
 			if (0 != status)
 			{
-				printf("thread creation failed\n");
+				PRINT("thread creation failed");
 				close(connection_fd[index]);
 				return FAILURE;
 			}
@@ -58,7 +87,7 @@ int start_server()
 			status = pthread_join(tid[index], (void**)NULL);
 			if (0 != status)
 			{
-				printf("Thread join failed\n");
+				PRINT("Thread join failed");
 				close(connection_fd[index]);
 				return FAILURE;
 			}
@@ -73,12 +102,15 @@ void *subroutine(void * connfd)
 	int new_sockfd = 0;
 	char buffer[MAX_LEN];
 
-	printf("client connected with server\n");
+	PRINT("client connected with server");
 
 	new_sockfd = connfd ? *(int *)connfd : 0;
 
-	READ(new_sockfd, buffer);
-	printf("\nMessage received : %s", buffer);
+	while(1)
+	{
+		READ(new_sockfd, buffer);
+		PRINT("Message received : %s", buffer);
+	}
 
 	pthread_exit(NULL);
 }
