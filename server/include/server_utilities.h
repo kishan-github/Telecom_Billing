@@ -17,6 +17,7 @@
 int init(char *argv);
 int init_database();
 int start_server();
+int check_number_in_database(int new_sockfd);
 void *subroutine(void * connfd);
 
 #endif

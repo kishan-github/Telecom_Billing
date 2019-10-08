@@ -54,7 +54,7 @@ int register_with_server(char *ph_no)
 		return FAILURE;
 
 	strcpy(buffer, ph_no);
-	WRITE(socket_fd, ph_no);
+	WRITE(socket_fd, buffer);
 
 	return SUCCESS;
 }

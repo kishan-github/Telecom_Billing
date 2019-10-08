@@ -106,6 +106,9 @@ void *subroutine(void * connfd)
 
 	new_sockfd = connfd ? *(int *)connfd : 0;
 
+	//Get client phone number.
+	check_number_in_database(new_sockfd);
+
 	while(1)
 	{
 		READ(new_sockfd, buffer);
@@ -113,4 +116,53 @@ void *subroutine(void * connfd)
 	}
 
 	pthread_exit(NULL);
+}
+
+int check_number_in_database(int new_sockfd)
+{
+	MYSQL_RES *res;
+	MYSQL_ROW row;
+	int num_fields;
+	int index = 0;
+	int flag = 0;
+	char buffer[MAX_LEN];
+	char query[MAX_LEN];
+
+	READ(new_sockfd, buffer);
+
+	sprintf(query, "SELECT ph_no FROM user_details");
+	if (mysql_query(mysql, query))
+	{
+		fprintf(stderr, "%s\n", mysql_error(mysql));
+		mysql_close(mysql);
+		exit(FAILURE);
+	}
+
+	res = mysql_store_result(mysql);
+	num_fields = mysql_num_fields(res);
+	while ((row = mysql_fetch_row(res)))
+	{
+		for (index = 0; index < num_fields; index++)
+		{
+			if (strcmp(row[index], buffer) == 0)
+			{
+				flag = 1;
+				break;
+			}
+		}
+	}
+	mysql_free_result(res);
+	if (flag == 1)
+	{
+		return SUCCESS;
+	}
+
+	sprintf(query, "INSERT INTO user_details (ph_no, connfd) VALUES ('%s','%d')", buffer, new_sockfd);
+	if (mysql_query(mysql, query))
+	{
+		fprintf(stderr, "%s\n", mysql_error(mysql));
+		mysql_close(mysql);
+		exit(FAILURE);
+	}
+	return SUCCESS;
 }

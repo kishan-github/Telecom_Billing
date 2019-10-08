@@ -23,14 +23,14 @@
 		if(read(sock_fd, buffer, sizeof(buffer)) < 0)	\
 		{	\
 			printf("\nRead failed.");	\
-			return NULL;	\
+			return FAILURE;	\
 		}
 
 #define WRITE(sock_fd, buffer)		\
 		if(write(sock_fd, buffer, sizeof(buffer)) < 0)	\
 		{	\
 			printf("\nWrite failed.");	\
-			return NULL;	\
+			return FAILURE;	\
 		}
 
 int create_socket(char *argv, int *socket_fd);
