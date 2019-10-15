@@ -1,6 +1,9 @@
 #include <socket.h>
 
-int create_socket(char *argv, int *socket_fd)
+// Variable to store the socket id of the link.
+int socket_fd = 0;
+
+int create_socket(char *argv)
 {
 	int port_number = 0;
 	int status	= 0;
@@ -18,15 +21,15 @@ int create_socket(char *argv, int *socket_fd)
         server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
 	/* Create socket */
-        *socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-	ERROR_CHECK(*socket_fd, "Socket creation failed.");
+        socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+	ERROR_CHECK(socket_fd, "Socket creation failed.");
 	
 	/* Binding */
-        status = bind(*socket_fd, (struct sockaddr*)&server_addr, sizeof(server_addr));
+        status = bind(socket_fd, (struct sockaddr*)&server_addr, sizeof(server_addr));
         ERROR_CHECK(status, "Bind failed.");
 
         /* listen */
-        status = listen(*socket_fd, MAX_CLIENT);
+        status = listen(socket_fd, MAX_CLIENT);
         ERROR_CHECK(status, "Listen failed.");
 
 	return SUCCESS;

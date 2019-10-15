@@ -1,5 +1,7 @@
 #include <main.h>
+#include <init.h>
 #include <server_utilities.h>
+#include <database.h>
 
 // Variable to store the socket id used to create link.
 extern int socket_fd;

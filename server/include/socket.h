@@ -33,6 +33,6 @@
 			return FAILURE;	\
 		}
 
-int create_socket(char *argv, int *socket_fd);
+int create_socket(char *argv);
 
 #endif
