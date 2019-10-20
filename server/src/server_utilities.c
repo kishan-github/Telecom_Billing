@@ -92,32 +92,63 @@ void *subroutine(void * connfd)
 int get_user_input(int socket_fd, int caller_user_id)
 {
 	char buffer[MAX_LEN];
+	user_input_t input = UNKNOWN_REQUEST;
 
-	// Get the number user wants to call.
-	READ(socket_fd, buffer);
-
-	// Setup the call.
-	if(create_call(buffer, socket_fd, caller_user_id) != SUCCESS)
+	while(1)
 	{
-		PRINT("Failed in create_call");
-		return FAILURE;
+		// Get the user request.
+		READ(socket_fd, buffer);
+		input = atoi(buffer);
+
+		switch(input)
+		{
+			case SETUP_CALL:
+			{
+				// Setup the call.
+				if(create_call(socket_fd, caller_user_id) != SUCCESS)
+				{
+					PRINT("Failed in create_call");
+					set_user_status(caller_user_id, USER_AVAILABLE);
+					return FAILURE;
+				}
+				break;
+			}
+			case SWITCH_OFF:
+			{
+				break;
+			}
+			case ACCEPT_CALL:
+			{
+				printf("\nUser accepted the call.");
+				while(1);
+			}
+			default:
+				break;
+		}
 	}
 
 	return SUCCESS;
 }
 
-int create_call(char *calling_number, int socket_fd, int caller_user_id)
+int create_call(int socket_fd, int caller_user_id)
 {
 	user_status_t status = USER_UNKNOWN;
+	caller_status_t c_status = CALLER_UNKNOWN;
 	int receiver_user_id = 0;
 	char buffer[MAX_LEN];
 	int receiver_connfd = 0;
 
+	// Set user status to busy
+	set_user_status(caller_user_id, USER_BUSY);
+
+	// Get the number user wants to call.
+	READ(socket_fd, buffer);
+
 	// Get the user id of the calling number.
-	if(get_user_id(calling_number, &receiver_user_id) != SUCCESS)
+	if(get_user_id(buffer, &receiver_user_id) != SUCCESS)
 	{
 		PRINT("Calling number is not available in database.");
-		strcpy(buffer, WRONG_NUMBER);
+		sprintf(buffer, "%d", CALLER_NOT_REGISTERED);
 		WRITE(socket_fd, buffer);
 		return FAILURE;
 	}
@@ -126,23 +157,39 @@ int create_call(char *calling_number, int socket_fd, int caller_user_id)
 	if(get_user_status(receiver_user_id, &status) != SUCCESS)
 	{
 		PRINT("Failed in get_user_status.");
-		strcpy(buffer, UNKNOWN);
+		sprintf(buffer, "%d", CALLER_UNKNOWN);
 		WRITE(socket_fd, buffer);
 		return FAILURE;
 	}
 
-	get_status_string(status, buffer);
+	c_status = map_user_status_to_caller(status);
+
 	// Send the status of the calling number to caller.
+	sprintf(buffer, "%d", c_status);
 	WRITE(socket_fd, buffer);
 
+	//Check if receiver is available to take call.
 	if(status == USER_AVAILABLE)
 	{
+		// Set receiver status to busy.
+		set_user_status(receiver_user_id, USER_BUSY);
+
+		// Get connection fd of receiver to send calling request.
 		get_user_connection_fd(receiver_user_id, &receiver_connfd);
+
+		// Get user number.
+		get_user_number(caller_user_id, buffer);
+
+		// Send a ring to the user.
+		WRITE(receiver_connfd, buffer);
+
+		// Create thread for sending and receiving messages.
 		create_sender_receiver_threads(socket_fd, receiver_connfd);
 	}
 	else
 	{
 		//TO-DO
+		set_user_status(caller_user_id, USER_AVAILABLE);
 	}
 
 	return SUCCESS;
@@ -238,4 +285,16 @@ void* receive_message(void *connfd)
 	}
 
 	pthread_exit(NULL);
+}
+
+caller_status_t map_user_status_to_caller(user_status_t status)
+{
+	switch(status)
+	{
+		case USER_AVAILABLE : return CALLER_AVAILABLE;
+		case USER_BUSY : return CALLER_BUSY;
+		case USER_SWITCHED_OFF : return CALLER_SWITCHED_OFF;
+		case USER_UNKNOWN : return CALLER_NOT_REGISTERED;
+		default : return CALLER_UNKNOWN;
+	}
 }

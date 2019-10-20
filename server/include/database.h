@@ -39,5 +39,7 @@ int is_number_already_in_database(char *phone_number, bool *is_available);
 int get_user_status(int user_id, user_status_t *status);
 int get_user_id(char *number, int *user_id);
 int get_user_connection_fd(int user_id, int *receiver_connfd);
+int set_user_status(int user_id, user_status_t status);
+int get_user_number(int user_id, char *number);
 
 #endif

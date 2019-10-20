@@ -236,3 +236,45 @@ int get_user_connection_fd(int user_id, int *receiver_connfd)
 
 	return SUCCESS;
 }
+
+int set_user_status(int user_id, user_status_t status)
+{
+	char query[MAX_LEN];
+
+	sprintf(query, "UPDATE user_status SET status = '%d' where user_id = '%d'", status, user_id);
+	if (mysql_query(mysql, query))
+	{
+		PRINT("SQL query failed.");
+		fprintf(stderr, "%s\n", mysql_error(mysql));
+		return FAILURE;
+	}
+
+	return SUCCESS;
+}
+
+int get_user_number(int user_id, char *number)
+{
+	MYSQL_RES *res;
+	MYSQL_ROW row;
+	int index = 0;
+	char query[MAX_LEN];
+
+	sprintf(query, "SELECT ph_no FROM user_details where user_id = '%d'", user_id);
+	if (mysql_query(mysql, query))
+	{
+		PRINT("SQL query failed.");
+		fprintf(stderr, "%s\n", mysql_error(mysql));
+		return FAILURE;
+	}
+
+	res = mysql_store_result(mysql);
+	row = mysql_fetch_row(res);
+	if(row)
+	{
+		strcpy(number, row[index]);
+	}
+
+	mysql_free_result(res);
+
+	return SUCCESS;
+}

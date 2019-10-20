@@ -3,6 +3,7 @@
 
 // Variable to store the socket id of the link.
 int socket_fd = 0;
+bool is_call_connected = false;
 
 // Initialize the objects.
 int init(char *argv)
@@ -27,14 +28,14 @@ int start_client_app(char *ph_no)
 	if(register_with_server(ph_no) == FAILURE)
 		return FAILURE;
 
-	status = pthread_create(&thread_id_send, NULL, send_message, NULL);
+	status = pthread_create(&thread_id_receive, NULL, receive_call, NULL);
 	if(0 != status)
 	{
 		printf("\n%s : %d : Thread creation failed.", __func__, __LINE__);
 		return FAILURE;
 	}
 
-	status = pthread_create(&thread_id_receive, NULL, receive_call, NULL);
+	status = pthread_create(&thread_id_send, NULL, select_option, NULL);
 	if(0 != status)
 	{
 		printf("\n%s : %d : Thread creation failed.", __func__, __LINE__);
@@ -81,64 +82,102 @@ int validate_number(char *ph_no)
 	return SUCCESS;
 }
 
-int select_option()
+void *select_option(void *arg)
 {
 	int option = 0;
+	int input = 0;
 
-	printf("\nSelect from the options given below:-");
-	printf("\n1 : To make a call");
-	printf("\n0 : Exit");
-
-	while(scanf("%d", &option) != 1)
+	while(1)
 	{
-		printf("\nNon numeric input is not allowed.");
-		while(getchar() != '\n');
+		printf("\nSelect from the options given below:-");
+		printf("\n1 : To make a call");
+		printf("\n0 : Exit");
+
+		do
+		{
+			input = scanf("%d", &option);
+			printf("entered input = %d", option);
+			if(is_call_connected)
+			{
+				send_message();
+			}
+			else if(input != 1)
+			{
+				printf("\nNon numeric input is not allowed.");
+				while(getchar() != '\n');
+			}
+			else
+				break;
+		}while(1);
+
+		switch(option)
+		{
+			case 0:
+			{
+				printf("\nExiting....");
+				switch_off();
+				break;
+			}
+			case 1:
+			{
+				make_a_call();
+				break;
+			}
+			default:
+			{
+				printf("\nPlease enter valid option.");
+				break;
+			}
+		}
 	}
 
-	switch(option)
-	{
-		case 0:
-		{
-			printf("\nExiting....");
-			break;
-		}
-		case 1:
-		{
-			make_a_call();
-			break;
-		}
-		default:
-		{
-			printf("\nPlease enter valid option.");
-			break;
-		}
-	}
-
-	return SUCCESS;
+	pthread_exit(NULL);
 }
 
 int make_a_call()
 {
 	char calling_number[MAX_LEN];
 	char buffer[MAX_LEN];
+	caller_status_t status = CALLER_UNKNOWN;
+
+	// Tell server that user wants to make a call.
+	sprintf(buffer, "%d", SETUP_CALL);
+	WRITE(socket_fd, buffer);
 
 	printf("\nEnter the number you want to call : ");
 	scanf("%s", calling_number);
+	while(getchar() != '\n');
 
+	// Validate the number.
 	if(validate_number(calling_number) == FAILURE)
 		return FAILURE;
 
+	// Send the calling number to server to check its status.
 	strcpy(buffer, calling_number);
 	WRITE(socket_fd, buffer);
+
+	// Read the status of the calling number.
+	READ(socket_fd, buffer);
+	status = atoi(buffer);
+
+	printf("\nStatus received = %d", status);
+
+	if(status != CALLER_AVAILABLE)
+	{
+		display_status_message(status);
+		return FAILURE;
+	}
+
+	is_call_connected = true;
+	// Start sending message.
+	send_message();
 
 	return SUCCESS;
 }
 
-void* send_message(void *arg)
+int send_message()
 {
 	char buffer[MAX_LEN];
-
-	select_option();
 
 	while(1)
 	{
@@ -152,9 +191,61 @@ void* receive_call(void *arg)
 {
 	char buffer[MAX_LEN];
 
+	READ(socket_fd, buffer);
+
+	if(!is_call_connected)
+	{
+		printf("Receiving a call from %s", buffer);
+		sprintf(buffer, "%d", ACCEPT_CALL);
+		WRITE(socket_fd, buffer);
+		is_call_connected = true;
+	}
+	else
+		printf("\nMessage received : %s", buffer);
 	while(1)
 	{
 		READ(socket_fd, buffer);
 		printf("\nMessage received : %s", buffer);
 	}
+}
+
+void display_status_message(caller_status_t status)
+{
+	switch(status)
+	{
+		case CALLER_BUSY:
+		{
+			printf("\nCalled number is busy on another call.");
+			break;
+		}
+		case CALLER_SWITCHED_OFF:
+		{
+			printf("\nCalled number is switched off.");
+			break;
+		}
+		case CALLER_NOT_REGISTERED:
+		{
+			printf("\nCalled number does not exist.");
+			break;
+		}
+		case CALLER_UNKNOWN:
+		{
+			printf("\nCaller unknown.");
+			break;
+		}
+		default:
+		{
+			printf("\nSomething went wrong....");
+		}
+	}
+}
+
+int switch_off()
+{
+	char buffer[MAX_LEN];
+
+	sprintf(buffer, "%d", CALLER_SWITCHED_OFF);
+	WRITE(socket_fd, buffer);
+
+	return SUCCESS;
 }

@@ -7,4 +7,6 @@
 #define FAILURE 0
 #define SUCCESS 1
 
+void handle_sigint(int sig) ;
+
 #endif

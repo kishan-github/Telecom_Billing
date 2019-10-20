@@ -12,6 +12,9 @@ int main(int argc, char *argv[])
 {
 	printf("\n/************** Server Window *************/");
 
+	// Add a signal handler.
+	signal(SIGINT, handle_sigint);
+
 	if(argc != 2)
 	{
 		printf("\nEnter proper command line arguments.");
@@ -41,4 +44,15 @@ int main(int argc, char *argv[])
 	mysql_close(mysql);
 
 	return 0;
+}
+
+void handle_sigint(int sig)
+{
+    printf("Caught signal %d\n", sig);
+
+    deinit_database();
+
+    // Close the socket before finishing.
+    close(socket_fd);
+    mysql_close(mysql);
 }
