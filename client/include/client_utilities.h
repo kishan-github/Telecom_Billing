@@ -11,7 +11,8 @@ int init(char *argv);
 int start_client_app(char *ph_no);
 int register_with_server(char *ph_no);
 int validate_number(char *ph_no);
+int make_a_call();
 void* send_message(void *arg);
-void* receive_message(void *arg);
+void* receive_call(void *arg);
 
 #endif

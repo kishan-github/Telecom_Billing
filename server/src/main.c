@@ -34,6 +34,8 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
+	deinit_database();
+
 	// Close the socket before finishing.
 	close(socket_fd);
 	mysql_close(mysql);

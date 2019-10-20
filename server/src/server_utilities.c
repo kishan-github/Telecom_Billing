@@ -1,7 +1,6 @@
 #include <socket.h>
 #include <server_utilities.h>
 #include <init.h>
-#include <database.h>
 
 extern int socket_fd;
 
@@ -60,8 +59,9 @@ void *subroutine(void * connfd)
 {
 	int new_sockfd = 0;
 	char buffer[MAX_LEN];
+	int caller_user_id = 0;
 
-	PRINT("client connected with server");
+	PRINT("Client connected with server");
 
 	new_sockfd = connfd ? *(int *)connfd : 0;
 
@@ -69,12 +69,172 @@ void *subroutine(void * connfd)
 	READ(new_sockfd, buffer);
 
 	// Add number in the database.
-	add_number_in_database(new_sockfd, buffer);
+	if(add_number_in_database(new_sockfd, buffer) != SUCCESS)
+	{
+		PRINT("Failed in add_number_in_database.");
+	}
+
+	// Get caller's user id from database.
+	if(get_user_id(buffer, &caller_user_id) != SUCCESS)
+	{
+		PRINT("Failed in get_user_id.");
+	}
+
+	// Wait for user input.
+	if(get_user_input(new_sockfd, caller_user_id) != SUCCESS)
+	{
+		PRINT("Failed in get_user_input.");
+	}
+
+	pthread_exit(NULL);
+}
+
+int get_user_input(int socket_fd, int caller_user_id)
+{
+	char buffer[MAX_LEN];
+
+	// Get the number user wants to call.
+	READ(socket_fd, buffer);
+
+	// Setup the call.
+	if(create_call(buffer, socket_fd, caller_user_id) != SUCCESS)
+	{
+		PRINT("Failed in create_call");
+		return FAILURE;
+	}
+
+	return SUCCESS;
+}
+
+int create_call(char *calling_number, int socket_fd, int caller_user_id)
+{
+	user_status_t status = USER_UNKNOWN;
+	int receiver_user_id = 0;
+	char buffer[MAX_LEN];
+	int receiver_connfd = 0;
+
+	// Get the user id of the calling number.
+	if(get_user_id(calling_number, &receiver_user_id) != SUCCESS)
+	{
+		PRINT("Calling number is not available in database.");
+		strcpy(buffer, WRONG_NUMBER);
+		WRITE(socket_fd, buffer);
+		return FAILURE;
+	}
+
+	// Get status of the calling number.
+	if(get_user_status(receiver_user_id, &status) != SUCCESS)
+	{
+		PRINT("Failed in get_user_status.");
+		strcpy(buffer, UNKNOWN);
+		WRITE(socket_fd, buffer);
+		return FAILURE;
+	}
+
+	get_status_string(status, buffer);
+	// Send the status of the calling number to caller.
+	WRITE(socket_fd, buffer);
+
+	if(status == USER_AVAILABLE)
+	{
+		get_user_connection_fd(receiver_user_id, &receiver_connfd);
+		create_sender_receiver_threads(socket_fd, receiver_connfd);
+	}
+	else
+	{
+		//TO-DO
+	}
+
+	return SUCCESS;
+}
+
+void get_status_string(user_status_t status, char *buffer)
+{
+	switch(status)
+	{
+		case USER_AVAILABLE:
+			strcpy(buffer, FREE);
+			break;
+		case USER_BUSY:
+			strcpy(buffer, BUSY);
+			break;
+		case USER_SWITCHED_OFF:
+			strcpy(buffer, OFF);
+			break;
+		case USER_UNKNOWN:
+			strcpy(buffer, WRONG_NUMBER);
+			break;
+		default:
+			PRINT("Wrong status.");
+	}
+}
+
+// Create threads for sending and receiving data.
+int create_sender_receiver_threads(int sender_connfd, int receiver_connfd)
+{
+	pthread_t thread_id_send;
+	pthread_t thread_id_receive;
+	int status = 0;
+	connection_t connfd;
+
+	memset(&connfd, 0, sizeof(connfd));
+	connfd.sender_connfd = sender_connfd;
+	connfd.receiver_connfd = receiver_connfd;
+
+	status = pthread_create(&thread_id_send, NULL, send_message, (void*)&connfd);
+	if(0 != status)
+	{
+		printf("\n%s : %d : Thread creation failed.", __func__, __LINE__);
+		return FAILURE;
+	}
+
+	status = pthread_create(&thread_id_receive, NULL, receive_message, (void*)&connfd);
+	if(0 != status)
+	{
+		printf("\n%s : %d : Thread creation failed.", __func__, __LINE__);
+		return FAILURE;
+	}
+
+	pthread_join(thread_id_send,NULL);
+	pthread_join(thread_id_receive,NULL);
+	return SUCCESS;
+}
+
+void* send_message(void *connfd)
+{
+	char buffer[MAX_LEN];
+	connection_t connection_fd;
+	int sender_connfd = 0;
+	int receiver_connfd = 0;
+
+	connection_fd = *(connection_t *)connfd;
+	sender_connfd = connection_fd.sender_connfd;
+	receiver_connfd = connection_fd.receiver_connfd;
 
 	while(1)
 	{
-		READ(new_sockfd, buffer);
-		PRINT("Message received : %s", buffer);
+		READ(sender_connfd, buffer);
+		WRITE(receiver_connfd, buffer);
+	}
+
+	pthread_exit(NULL);
+}
+
+void* receive_message(void *connfd)
+{
+	char buffer[MAX_LEN];
+	connection_t connection_fd;
+	int sender_connfd = 0;
+	int receiver_connfd = 0;
+
+	connection_fd = *(connection_t *)connfd;
+	sender_connfd = connection_fd.sender_connfd;
+	receiver_connfd = connection_fd.receiver_connfd;
+
+	while(1)
+	{
+		READ(receiver_connfd, buffer);
+		WRITE(sender_connfd, buffer);
 	}
 
 	pthread_exit(NULL);
