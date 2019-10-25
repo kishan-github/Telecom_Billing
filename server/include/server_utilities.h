@@ -10,6 +10,7 @@
 #define OFF "SWITCHED_OFF"
 #define WRONG_NUMBER "WRONG_NUMBER"
 #define UNKNOWN "UNKNOWN"
+#define EXIT "EXIT"
 
 #define PRINT(msg, ...)	\
 		printf("\n%s : %d : "msg"\n", __func__, __LINE__, ##__VA_ARGS__);\
@@ -22,6 +23,7 @@ typedef struct connection{
 typedef enum user_input{
 	SETUP_CALL,
 	ACCEPT_CALL,
+	DISCONNECT_CALL,
 	SWITCH_OFF,
 	UNKNOWN_REQUEST
 }user_input_t;

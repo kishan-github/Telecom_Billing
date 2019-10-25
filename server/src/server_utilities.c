@@ -261,6 +261,12 @@ void* send_message(void *connfd)
 	while(1)
 	{
 		READ(sender_connfd, buffer);
+		if(!strcmp(buffer, EXIT))
+		{
+			sprintf(buffer, "%d", DISCONNECT_CALL);
+			WRITE(receiver_connfd, buffer);
+			break;
+		}
 		WRITE(receiver_connfd, buffer);
 	}
 
@@ -281,6 +287,12 @@ void* receive_message(void *connfd)
 	while(1)
 	{
 		READ(receiver_connfd, buffer);
+		if(!strcmp(buffer, EXIT))
+		{
+			sprintf(buffer, "%d", DISCONNECT_CALL);
+			WRITE(sender_connfd, buffer);
+			break;
+		}
 		WRITE(sender_connfd, buffer);
 	}
 
