@@ -45,5 +45,6 @@ int create_sender_receiver_threads(int sender_connfd, int receiver_connfd);
 void* send_message(void *connfd);
 void* receive_message(void *connfd);
 caller_status_t map_user_status_to_caller(user_status_t status);
+int disconnect_user(int socket_fd, int caller_user_id);
 
 #endif

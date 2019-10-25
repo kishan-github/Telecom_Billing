@@ -115,6 +115,8 @@ int get_user_input(int socket_fd, int caller_user_id)
 			}
 			case SWITCH_OFF:
 			{
+				disconnect_user(socket_fd, caller_user_id);
+				return SUCCESS;
 				break;
 			}
 			case ACCEPT_CALL:
@@ -309,4 +311,12 @@ caller_status_t map_user_status_to_caller(user_status_t status)
 		case USER_UNKNOWN : return CALLER_NOT_REGISTERED;
 		default : return CALLER_UNKNOWN;
 	}
+}
+
+int disconnect_user(int socket_fd, int caller_user_id)
+{
+	if(set_user_status(caller_user_id, USER_SWITCHED_OFF) != SUCCESS)
+		return FAILURE;
+
+	return SUCCESS;
 }

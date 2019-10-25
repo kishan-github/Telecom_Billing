@@ -59,7 +59,7 @@ int start_client_app(char *ph_no)
 	}
 
 	pthread_join(thread_id_send,NULL);
-	pthread_join(thread_id_receive,NULL);
+	//pthread_join(thread_id_receive,NULL);
 	return SUCCESS;
 }
 
@@ -138,6 +138,7 @@ void *select_option(void *arg)
 			{
 				printf("\nExiting....");
 				switch_off();
+				pthread_exit(NULL);
 				break;
 			}
 			case 1:
@@ -296,7 +297,7 @@ int switch_off()
 {
 	char buffer[MAX_LEN];
 
-	sprintf(buffer, "%d", CALLER_SWITCHED_OFF);
+	sprintf(buffer, "%d", SWITCH_OFF);
 	WRITE(socket_fd, buffer);
 
 	return SUCCESS;
