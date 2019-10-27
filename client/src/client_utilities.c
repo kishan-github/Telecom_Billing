@@ -279,7 +279,12 @@ int receive_call()
 {
 	accept_call_request();
 
-	receive_message(NULL);
+	// Update the is_call_connected variable.
+	lock_call_mutex();
+	is_call_connected = true;
+	unlock_call_mutex();
+
+	create_sender_receiver_threads();
 
 	return SUCCESS;
 }
@@ -380,18 +385,6 @@ int accept_call_request()
 	printf("\nReceiving a call from %s", buffer);
 	sprintf(buffer, "%d", ACCEPT_CALL);
 	WRITE(socket_fd, buffer);
-
-	status = pthread_create(&thread_id_send, NULL, send_message, NULL);
-	if(0 != status)
-	{
-		printf("\n%s : %d : Thread creation failed.", __func__, __LINE__);
-		return FAILURE;
-	}
-
-	// Update the is_call_connected variable.
-	lock_call_mutex();
-	is_call_connected = true;
-	unlock_call_mutex();
 
 	return SUCCESS;
 }
