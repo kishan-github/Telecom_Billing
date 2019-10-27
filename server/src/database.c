@@ -75,6 +75,7 @@ int add_number_in_database(int socket_fd, char *phone_number)
 {
 	char query[MAX_LEN];
 	bool is_available = false;
+	int user_id = 0;
 
 	// Check if number is already available in database.
 	if(is_number_already_in_database(phone_number, &is_available) == FAILURE)
@@ -86,6 +87,8 @@ int add_number_in_database(int socket_fd, char *phone_number)
 	if(is_available)
 	{
 		PRINT("Number is already registered.");
+		get_user_id(phone_number, &user_id);
+		set_user_status(user_id, USER_AVAILABLE);
 		return SUCCESS;
 	}
 
