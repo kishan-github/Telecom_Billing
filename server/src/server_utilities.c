@@ -138,16 +138,21 @@ int create_call(int socket_fd, int caller_user_id)
 	caller_status_t c_status = CALLER_UNKNOWN;
 	int receiver_user_id = 0;
 	char buffer[MAX_LEN];
+	char calling_number[MAX_LEN];
 	int receiver_connfd = 0;
 
 	// Set user status to busy
 	set_user_status(caller_user_id, USER_BUSY);
 
 	// Get the number user wants to call.
-	READ(socket_fd, buffer);
+	READ(socket_fd, calling_number);
+
+	// Send the status to caller about the calling number.
+	sprintf(buffer, "%d", RECEIVE_STATUS);
+	WRITE(socket_fd, buffer);
 
 	// Get the user id of the calling number.
-	if(get_user_id(buffer, &receiver_user_id) != SUCCESS)
+	if(get_user_id(calling_number, &receiver_user_id) != SUCCESS)
 	{
 		PRINT("Calling number is not available in database.");
 		sprintf(buffer, "%d", CALLER_NOT_REGISTERED);
@@ -165,8 +170,6 @@ int create_call(int socket_fd, int caller_user_id)
 	}
 
 	c_status = map_user_status_to_caller(status);
-
-	// Send the status of the calling number to caller.
 	sprintf(buffer, "%d", c_status);
 	WRITE(socket_fd, buffer);
 
@@ -179,10 +182,13 @@ int create_call(int socket_fd, int caller_user_id)
 		// Get connection fd of receiver to send calling request.
 		get_user_connection_fd(receiver_user_id, &receiver_connfd);
 
+		// Send a ring to the user.
+		sprintf(buffer, "%d", RECEIVE_CALL);
+		WRITE(receiver_connfd, buffer);
+
 		// Get user number.
 		get_user_number(caller_user_id, buffer);
 
-		// Send a ring to the user.
 		WRITE(receiver_connfd, buffer);
 
 		// Create thread for sending and receiving messages.

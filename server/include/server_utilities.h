@@ -36,6 +36,12 @@ typedef enum caller_status{
 	CALLER_UNKNOWN
 }caller_status_t;
 
+typedef enum server_response{
+	RECEIVE_CALL,
+	RECEIVE_STATUS,
+	RESPONSE_UNKNOWN
+}server_response_t;
+
 int start_server();
 void *subroutine(void * connfd);
 int get_user_input(int socket_fd, int caller_user_id);

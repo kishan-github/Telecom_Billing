@@ -26,6 +26,12 @@ typedef enum caller_status{
 	CALLER_UNKNOWN
 }caller_status_t;
 
+typedef enum server_response{
+	RECEIVE_CALL,
+	RECEIVE_STATUS,
+	RESPONSE_UNKNOWN
+}server_response_t;
+
 int init(char *argv);
 int start_client_app(char *ph_no);
 int register_with_server(char *ph_no);
@@ -33,12 +39,18 @@ int validate_number(char *ph_no);
 void *select_option(void *arg);
 int make_a_call();
 void* send_message(void *arg);
-void* receive_call(void *arg);
+void* get_server_reponse(void *arg);
+int receive_call();
+int receive_status();
 void display_status_message(caller_status_t status);
 int switch_off();
-int accept_call_request(char *number);
+int accept_call_request();
+void * receive_message(void *arg);
 void lock_call_mutex();
 void unlock_call_mutex();
 void remove_newline_from_string(char *str);
+void lock_status_mutex();
+void unlock_status_mutex();
+int create_sender_receiver_threads();
 
 #endif
