@@ -113,6 +113,89 @@ int validate_number(char *ph_no)
 	return SUCCESS;
 }
 
+void* get_server_reponse(void *arg)
+{
+	char buffer[MAX_LEN];
+	server_response_t response = RESPONSE_UNKNOWN;
+
+	while(1)
+	{
+		// Receive the server response.
+		READ(socket_fd, buffer);
+		response = atoi(buffer);
+
+		printf("\nServer response = %d", response);
+
+		switch(response)
+		{
+			case RECEIVE_CALL:
+			{
+				receive_call();
+				break;
+			}
+			case RECEIVE_STATUS:
+			{
+				receive_status();
+				break;
+			}
+			default:
+				printf("\nUnknown response from server.");
+		}
+	}
+
+	pthread_exit(NULL);
+}
+
+int receive_call()
+{
+	accept_call_request();
+
+	// Update the is_call_connected variable.
+	lock_call_mutex();
+	is_call_connected = true;
+	unlock_call_mutex();
+
+	create_sender_receiver_threads();
+
+	return SUCCESS;
+}
+
+int accept_call_request()
+{
+	char buffer[MAX_LEN];
+
+	READ(socket_fd, buffer);
+
+	printf("\nReceiving a call from %s", buffer);
+	sprintf(buffer, "%d", ACCEPT_CALL);
+	WRITE(socket_fd, buffer);
+
+	return SUCCESS;
+}
+
+int receive_status()
+{
+	char buffer[MAX_LEN];
+	caller_status_t status = CALLER_UNKNOWN;
+
+	READ(socket_fd, buffer);
+	status = atoi(buffer);
+	printf("\nStatus received = %d", status);
+	lock_status_mutex();
+	caller_status = status;
+	pthread_cond_signal(&called_number_status_cond);
+	unlock_status_mutex();
+
+	if(status == CALLER_AVAILABLE)
+	{
+		lock_call_mutex();
+		pthread_cond_wait(&call_connected_cond, &call_connected_mutex);
+		unlock_call_mutex();
+	}
+
+	return SUCCESS;
+}
+
 void *select_option(void *arg)
 {
 	int option = 0;
@@ -172,6 +255,16 @@ void *select_option(void *arg)
 	pthread_exit(NULL);
 }
 
+int switch_off()
+{
+	char buffer[MAX_LEN];
+
+	sprintf(buffer, "%d", SWITCH_OFF);
+	WRITE(socket_fd, buffer);
+
+	return SUCCESS;
+}
+
 int make_a_call()
 {
 	char calling_number[MAX_LEN];
@@ -215,124 +308,6 @@ int make_a_call()
 	return SUCCESS;
 }
 
-void* send_message(void *arg)
-{
-	char buffer[MAX_LEN];
-
-	while(1)
-	{
-		printf("\nEnter message : ");
-		fgets(buffer, sizeof(buffer), stdin);
-		//remove_newline_from_string(buffer);
-
-		//if(!is_call_connected)
-			//break;
-
-		WRITE(socket_fd, buffer);
-		if(!strcmp(buffer, EXIT))
-		{
-			lock_call_mutex();
-			is_call_connected = false;
-			pthread_cond_signal(&call_connected_cond);
-			unlock_call_mutex();
-			break;
-		}
-	}
-
-	return NULL;//pthread_exit(NULL);
-}
-
-void* get_server_reponse(void *arg)
-{
-	char buffer[MAX_LEN];
-	server_response_t response = RESPONSE_UNKNOWN;
-
-	while(1)
-	{
-		// Receive the server response.
-		READ(socket_fd, buffer);
-		response = atoi(buffer);
-
-		printf("\nServer response = %d", response);
-
-		switch(response)
-		{
-			case RECEIVE_CALL:
-			{
-				receive_call();
-				break;
-			}
-			case RECEIVE_STATUS:
-			{
-				receive_status();
-				break;
-			}
-			default:
-				printf("\nUnknown response from server.");
-		}
-	}
-
-	pthread_exit(NULL);
-}
-
-int receive_call()
-{
-	accept_call_request();
-
-	// Update the is_call_connected variable.
-	lock_call_mutex();
-	is_call_connected = true;
-	unlock_call_mutex();
-
-	create_sender_receiver_threads();
-
-	return SUCCESS;
-}
-
-void * receive_message(void *arg)
-{
-	char buffer[MAX_LEN];
-
-	while(1)
-	{
-		READ(socket_fd, buffer);
-		if(atoi(buffer) == DISCONNECT_CALL)
-		{
-			lock_call_mutex();
-			is_call_connected = false;
-			pthread_cond_signal(&call_connected_cond);
-			unlock_call_mutex();
-			break;
-		}
-		printf("\nMessage received : %s", buffer);
-	}
-
-	pthread_exit(NULL);
-}
-
-int receive_status()
-{
-	char buffer[MAX_LEN];
-	caller_status_t status = CALLER_UNKNOWN;
-
-	READ(socket_fd, buffer);
-	status = atoi(buffer);
-	printf("\nStatus received = %d", status);
-	lock_status_mutex();
-	caller_status = status;
-	pthread_cond_signal(&called_number_status_cond);
-	unlock_status_mutex();
-
-	if(status == CALLER_AVAILABLE)
-	{
-		lock_call_mutex();
-		pthread_cond_wait(&call_connected_cond, &call_connected_mutex);
-		unlock_call_mutex();
-	}
-
-	return SUCCESS;
-}
-
 void display_status_message(caller_status_t status)
 {
 	switch(status)
@@ -364,29 +339,78 @@ void display_status_message(caller_status_t status)
 	}
 }
 
-int switch_off()
+// Create threads for sending and receiving data.
+int create_sender_receiver_threads()
 {
-	char buffer[MAX_LEN];
+	pthread_t thread_id_send;
+	pthread_t thread_id_receive;
+	int status = 0;
 
-	sprintf(buffer, "%d", SWITCH_OFF);
-	WRITE(socket_fd, buffer);
+	status = pthread_create(&thread_id_send, NULL, send_message, NULL);
+	if(0 != status)
+	{
+		printf("\n%s : %d : Thread creation failed.", __func__, __LINE__);
+		return FAILURE;
+	}
 
+	status = pthread_create(&thread_id_receive, NULL, receive_message, NULL);
+	if(0 != status)
+	{
+		printf("\n%s : %d : Thread creation failed.", __func__, __LINE__);
+		return FAILURE;
+	}
+
+	pthread_join(thread_id_send,NULL);
+	pthread_join(thread_id_receive,NULL);
 	return SUCCESS;
 }
 
-int accept_call_request()
+void* send_message(void *arg)
 {
 	char buffer[MAX_LEN];
-	int status = 0;
-	pthread_t thread_id_send;
 
-	READ(socket_fd, buffer);
+	while(1)
+	{
+		printf("\nEnter message : ");
+		fgets(buffer, sizeof(buffer), stdin);
+		//remove_newline_from_string(buffer);
 
-	printf("\nReceiving a call from %s", buffer);
-	sprintf(buffer, "%d", ACCEPT_CALL);
-	WRITE(socket_fd, buffer);
+		//if(!is_call_connected)
+			//break;
 
-	return SUCCESS;
+		WRITE(socket_fd, buffer);
+		if(!strcmp(buffer, EXIT))
+		{
+			lock_call_mutex();
+			is_call_connected = false;
+			pthread_cond_signal(&call_connected_cond);
+			unlock_call_mutex();
+			break;
+		}
+	}
+
+	pthread_exit(NULL);
+}
+
+void * receive_message(void *arg)
+{
+	char buffer[MAX_LEN];
+
+	while(1)
+	{
+		READ(socket_fd, buffer);
+		if(atoi(buffer) == DISCONNECT_CALL)
+		{
+			lock_call_mutex();
+			is_call_connected = false;
+			pthread_cond_signal(&call_connected_cond);
+			unlock_call_mutex();
+			break;
+		}
+		printf("\nMessage received : %s", buffer);
+	}
+
+	pthread_exit(NULL);
 }
 
 void lock_call_mutex()
@@ -442,30 +466,4 @@ void unlock_status_mutex()
 		printf("\ncalled_number_status_mutex mutex released");
 	else
 		printf("\ncalled_number_status_mutex unlock failed");*/
-}
-
-// Create threads for sending and receiving data.
-int create_sender_receiver_threads()
-{
-	pthread_t thread_id_send;
-	pthread_t thread_id_receive;
-	int status = 0;
-
-	status = pthread_create(&thread_id_send, NULL, send_message, NULL);
-	if(0 != status)
-	{
-		printf("\n%s : %d : Thread creation failed.", __func__, __LINE__);
-		return FAILURE;
-	}
-
-	status = pthread_create(&thread_id_receive, NULL, receive_message, NULL);
-	if(0 != status)
-	{
-		printf("\n%s : %d : Thread creation failed.", __func__, __LINE__);
-		return FAILURE;
-	}
-
-	pthread_join(thread_id_send,NULL);
-	pthread_join(thread_id_receive,NULL);
-	return SUCCESS;
 }
