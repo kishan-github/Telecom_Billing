@@ -52,30 +52,41 @@ int init(char *argv)
 // Start the client app.
 int start_client_app(char *ph_no)
 {
-	pthread_t thread_id_send;
-	pthread_t thread_id_receive;
-	int status = 0;
+	int pid = 0;
 
 	if(register_with_server(ph_no) == FAILURE)
 		return FAILURE;
 
-	status = pthread_create(&thread_id_receive, NULL, get_server_reponse, NULL);
-	if(0 != status)
+	do
 	{
-		printf("\n%s : %d : Thread creation failed.", __func__, __LINE__);
-		return FAILURE;
-	}
+		pid = fork();
+		if(pid == 0)
+		{
+			pid = fork();
 
-	status = pthread_create(&thread_id_send, NULL, select_option, NULL);
-	if(0 != status)
-	{
-		printf("\n%s : %d : Thread creation failed.", __func__, __LINE__);
-		return FAILURE;
-	}
+			if(pid == 0)
+			{
+				//child
+				signal(SIGUSR1, terminate_self);
+				get_server_reponse();
 
-	pthread_join(thread_id_send,NULL);
-	//pthread_join(thread_id_receive,NULL);
-	return SUCCESS;
+			}
+			else if(pid > 0)
+			{
+				// parent
+				signal(SIGUSR1, wait_for_child_process_to_exit);
+				select_option(pid);
+			}
+			else
+			{
+				printf("Process creation failed.");
+			}
+		}
+
+		wait(NULL);
+	}while(1);
+
+	exit(0);
 }
 
 int register_with_server(char *ph_no)
@@ -113,49 +124,49 @@ int validate_number(char *ph_no)
 	return SUCCESS;
 }
 
-void* get_server_reponse(void *arg)
+int get_server_reponse(void)
 {
 	char buffer[MAX_LEN];
 	server_response_t response = RESPONSE_UNKNOWN;
 
-	while(1)
+	// Receive the server response.
+	READ(socket_fd, buffer);
+	response = atoi(buffer);
+
+	printf("\nServer response = %d", response);
+
+	switch(response)
 	{
-		// Receive the server response.
-		READ(socket_fd, buffer);
-		response = atoi(buffer);
-
-		printf("\nServer response = %d", response);
-
-		switch(response)
+		case RECEIVE_CALL:
 		{
-			case RECEIVE_CALL:
-			{
-				receive_call();
-				break;
-			}
-			case RECEIVE_STATUS:
-			{
-				receive_status();
-				break;
-			}
-			default:
-				printf("\nUnknown response from server.");
+			kill(getppid(), SIGUSR1);
+			receive_call();
+			break;
 		}
+		case RECEIVE_STATUS:
+		{
+			receive_status();
+			break;
+		}
+		default:
+			printf("\nUnknown response from server.");
 	}
-
-	pthread_exit(NULL);
+	exit(0);
 }
 
 int receive_call()
 {
+	int pid = 0;
+
 	accept_call_request();
 
-	// Update the is_call_connected variable.
-	lock_call_mutex();
-	is_call_connected = true;
-	unlock_call_mutex();
+	pid = fork();
+	if(pid == 0)
+	{
+		create_sender_receiver_threads();
+	}
 
-	create_sender_receiver_threads();
+	wait(NULL);
 
 	return SUCCESS;
 }
@@ -186,73 +197,53 @@ int receive_status()
 	pthread_cond_signal(&called_number_status_cond);
 	unlock_status_mutex();
 
-	if(status == CALLER_AVAILABLE)
-	{
-		lock_call_mutex();
-		pthread_cond_wait(&call_connected_cond, &call_connected_mutex);
-		unlock_call_mutex();
-	}
-
 	return SUCCESS;
 }
 
-void *select_option(void *arg)
+void select_option(int pid)
 {
 	int option = 0;
 	int input = 0;
 
-	while(1)
+	printf("\nSelect from the options given below:-");
+	printf("\n1 : To make a call");
+	printf("\n0 : Exit");
+
+	do
 	{
-		printf("\nSelect from the options given below:-");
-		printf("\n1 : To make a call");
-		printf("\n0 : Exit");
+		input = scanf("%d", &option);
+		printf("entered input = %d", option);
 
-		do
+		if(input != 1)
 		{
-			input = scanf("%d", &option);
-			printf("entered input = %d", option);
+			printf("\nNon numeric input is not allowed.");
+			while(getchar() != '\n');
+		}
+		else
+			break;
+	}while(1);
 
-			lock_call_mutex();
-			if(is_call_connected)
-			{
-				pthread_cond_wait(&call_connected_cond, &call_connected_mutex);
-				unlock_call_mutex();
-				continue;
-				//send_message(NULL);
-			}
-			unlock_call_mutex();
-			if(input != 1)
-			{
-				printf("\nNon numeric input is not allowed.");
-				while(getchar() != '\n');
-			}
-			else
-				break;
-		}while(1);
-
-		switch(option)
+	switch(option)
+	{
+		case 0:
 		{
-			case 0:
-			{
-				printf("\nExiting....");
-				switch_off();
-				pthread_exit(NULL);
-				break;
-			}
-			case 1:
-			{
-				make_a_call();
-				break;
-			}
-			default:
-			{
-				printf("\nPlease enter valid option.");
-				break;
-			}
+			printf("\nExiting....");
+			kill(pid, SIGUSR1);
+			switch_off();
+			break;
+		}
+		case 1:
+		{
+			kill(pid, SIGUSR1);
+			make_a_call();
+			break;
+		}
+		default:
+		{
+			printf("\nPlease enter valid option.");
+			break;
 		}
 	}
-
-	pthread_exit(NULL);
 }
 
 int switch_off()
@@ -267,6 +258,7 @@ int switch_off()
 
 int make_a_call()
 {
+	int pid = 0;
 	char calling_number[MAX_LEN];
 	char buffer[MAX_LEN];
 	caller_status_t status = CALLER_UNKNOWN;
@@ -287,10 +279,8 @@ int make_a_call()
 	strcpy(buffer, calling_number);
 	WRITE(socket_fd, buffer);
 
-	lock_status_mutex();
-	pthread_cond_wait(&called_number_status_cond, &called_number_status_mutex);
-	status = caller_status;
-	unlock_status_mutex();
+	READ(socket_fd, buffer);
+	status = atoi(buffer);
 
 	if(status != CALLER_AVAILABLE)
 	{
@@ -298,12 +288,13 @@ int make_a_call()
 		return FAILURE;
 	}
 
-	lock_call_mutex();
-	is_call_connected = true;
-	unlock_call_mutex();
-	// Start sending message.
-	//send_message(NULL);
-	create_sender_receiver_threads();
+	pid = fork();
+	if(pid == 0)
+	{
+		create_sender_receiver_threads();
+	}
+
+	wait(NULL);
 
 	return SUCCESS;
 }
@@ -342,30 +333,33 @@ void display_status_message(caller_status_t status)
 // Create threads for sending and receiving data.
 int create_sender_receiver_threads()
 {
-	pthread_t thread_id_send;
-	pthread_t thread_id_receive;
-	int status = 0;
+	int pid = 0;
 
-	status = pthread_create(&thread_id_send, NULL, send_message, NULL);
-	if(0 != status)
+	pid = fork();
+
+	if(pid == 0)
 	{
-		printf("\n%s : %d : Thread creation failed.", __func__, __LINE__);
-		return FAILURE;
+		//child
+		printf("\nsend message pid = %d", getpid());
+		signal(SIGUSR1, terminate_self);
+		send_message();
+	}
+	else if(pid > 0)
+	{
+		// parent
+		printf("\nreceive message pid = %d", getpid());
+		signal(SIGUSR1, wait_for_child_process_to_exit);
+		receive_message(pid);
+	}
+	else
+	{
+		printf("Creation of processes failed");
 	}
 
-	status = pthread_create(&thread_id_receive, NULL, receive_message, NULL);
-	if(0 != status)
-	{
-		printf("\n%s : %d : Thread creation failed.", __func__, __LINE__);
-		return FAILURE;
-	}
-
-	pthread_join(thread_id_send,NULL);
-	pthread_join(thread_id_receive,NULL);
 	return SUCCESS;
 }
 
-void* send_message(void *arg)
+int send_message(void)
 {
 	char buffer[MAX_LEN];
 
@@ -373,26 +367,19 @@ void* send_message(void *arg)
 	{
 		printf("\nEnter message : ");
 		fgets(buffer, sizeof(buffer), stdin);
-		//remove_newline_from_string(buffer);
-
-		//if(!is_call_connected)
-			//break;
 
 		WRITE(socket_fd, buffer);
 		if(!strcmp(buffer, EXIT))
 		{
-			lock_call_mutex();
-			is_call_connected = false;
-			pthread_cond_signal(&call_connected_cond);
-			unlock_call_mutex();
+			kill(getppid(), SIGUSR1);
 			break;
 		}
 	}
 
-	pthread_exit(NULL);
+	exit(0);
 }
 
-void * receive_message(void *arg)
+int receive_message(int pid)
 {
 	char buffer[MAX_LEN];
 
@@ -401,18 +388,28 @@ void * receive_message(void *arg)
 		READ(socket_fd, buffer);
 		if(atoi(buffer) == DISCONNECT_CALL)
 		{
-			lock_call_mutex();
-			is_call_connected = false;
-			pthread_cond_signal(&call_connected_cond);
-			unlock_call_mutex();
+			kill(pid, SIGUSR1);
 			break;
 		}
 		printf("\nMessage received : %s", buffer);
 	}
 
-	pthread_exit(NULL);
+	exit(0);
 }
 
+void terminate_self(int sig_no)
+{
+	//printf("Signal received for ending call. pid = %d", getpid());
+	exit(0);
+}
+
+void wait_for_child_process_to_exit(int sig_no)
+{
+	//printf("Wait for child process to exit. pid = %d", getpid());
+	wait(NULL);
+	exit(0);
+}
+#if 0
 void lock_call_mutex()
 {
 	int result = 0;
@@ -467,3 +464,4 @@ void unlock_status_mutex()
 	else
 		printf("\ncalled_number_status_mutex unlock failed");*/
 }
+#endif

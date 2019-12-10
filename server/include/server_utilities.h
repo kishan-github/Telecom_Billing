@@ -10,7 +10,7 @@
 #define OFF "SWITCHED_OFF"
 #define WRONG_NUMBER "WRONG_NUMBER"
 #define UNKNOWN "UNKNOWN"
-#define EXIT "EXIT"
+#define EXIT "EXIT\n"
 
 #define PRINT(msg, ...)	\
 		printf("\n%s : %d : "msg"\n", __func__, __LINE__, ##__VA_ARGS__);\

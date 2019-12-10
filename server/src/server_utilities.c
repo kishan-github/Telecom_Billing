@@ -148,8 +148,8 @@ int create_call(int socket_fd, int caller_user_id)
 	READ(socket_fd, calling_number);
 
 	// Send the status to caller about the calling number.
-	sprintf(buffer, "%d", RECEIVE_STATUS);
-	WRITE(socket_fd, buffer);
+	//sprintf(buffer, "%d", RECEIVE_STATUS);
+	//WRITE(socket_fd, buffer);
 
 	// Get the user id of the calling number.
 	if(get_user_id(calling_number, &receiver_user_id) != SUCCESS)

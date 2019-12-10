@@ -4,11 +4,12 @@
 #include <pthread.h>
 #include <ctype.h>
 #include <stdbool.h>
+#include <sys/wait.h>
 
 #define MAX_LEN 1000
 #define PHONE_NO_LENGTH 10
 #define CALL "CALL"
-#define EXIT "EXIT"
+#define EXIT "EXIT\n"
 
 typedef enum user_input{
 	SETUP_CALL,
@@ -36,21 +37,23 @@ int init(char *argv);
 int start_client_app(char *ph_no);
 int register_with_server(char *ph_no);
 int validate_number(char *ph_no);
-void *select_option(void *arg);
+void select_option(int pid);
 int make_a_call();
-void* send_message(void *arg);
-void* get_server_reponse(void *arg);
+int get_server_reponse(void);
 int receive_call();
 int receive_status();
 void display_status_message(caller_status_t status);
 int switch_off();
 int accept_call_request();
-void * receive_message(void *arg);
 void lock_call_mutex();
 void unlock_call_mutex();
 void remove_newline_from_string(char *str);
 void lock_status_mutex();
 void unlock_status_mutex();
 int create_sender_receiver_threads();
+int send_message(void);
+int receive_message(int pid);
+void terminate_self(int sig_no);
+void wait_for_child_process_to_exit(int sig_no);
 
 #endif
