@@ -140,6 +140,7 @@ int create_call(int socket_fd, int caller_user_id)
 	char buffer[MAX_LEN];
 	char calling_number[MAX_LEN];
 	int receiver_connfd = 0;
+	int pid = 0;
 
 	// Set user status to busy
 	set_user_status(caller_user_id, USER_BUSY);
@@ -192,7 +193,13 @@ int create_call(int socket_fd, int caller_user_id)
 		WRITE(receiver_connfd, buffer);
 
 		// Create thread for sending and receiving messages.
-		create_sender_receiver_threads(socket_fd, receiver_connfd);
+		pid = fork();
+		if(pid == 0)
+		{
+			create_sender_receiver_threads(socket_fd, receiver_connfd);
+		}
+
+		wait(NULL);
 	}
 	else
 	{
@@ -224,6 +231,89 @@ void get_status_string(user_status_t status, char *buffer)
 	}
 }
 
+// Create threads for sending and receiving data.
+int create_sender_receiver_threads(int socket_fd, int receiver_connfd)
+{
+	int pid = 0;
+
+	pid = fork();
+
+	if(pid == 0)
+	{
+		//child
+		printf("\nsend message pid = %d", getpid());
+		signal(SIGUSR1, terminate_self);
+		send_message(socket_fd, receiver_connfd);
+	}
+	else if(pid > 0)
+	{
+		// parent
+		printf("\nreceive message pid = %d", getpid());
+		signal(SIGUSR1, wait_for_child_process_to_exit);
+		receive_message(pid, socket_fd, receiver_connfd);
+	}
+	else
+	{
+		printf("Creation of processes failed");
+	}
+
+	return SUCCESS;
+}
+
+int send_message(int sender_connfd, int receiver_connfd)
+{
+	char buffer[MAX_LEN];
+
+	while(1)
+	{
+		READ(sender_connfd, buffer);
+		if(!strcmp(buffer, EXIT))
+		{
+			sprintf(buffer, "%d", DISCONNECT_CALL);
+			WRITE(receiver_connfd, buffer);
+			kill(getppid(), SIGUSR1);
+			break;
+		}
+		WRITE(receiver_connfd, buffer);
+	}
+
+	exit(0);
+}
+
+int receive_message(int pid, int sender_connfd, int receiver_connfd)
+{
+	char buffer[MAX_LEN];
+
+	while(1)
+	{
+		READ(receiver_connfd, buffer);
+		if(!strcmp(buffer, EXIT))
+		{
+			sprintf(buffer, "%d", DISCONNECT_CALL);
+			WRITE(sender_connfd, buffer);
+			kill(pid, SIGUSR1);
+			break;
+		}
+		WRITE(sender_connfd, buffer);
+	}
+
+	exit(0);
+}
+
+void terminate_self(int sig_no)
+{
+	//printf("Signal received for ending call. pid = %d", getpid());
+	exit(0);
+}
+
+void wait_for_child_process_to_exit(int sig_no)
+{
+	//printf("Wait for child process to exit. pid = %d", getpid());
+	wait(NULL);
+	exit(0);
+}
+
+/*
 // Create threads for sending and receiving data.
 int create_sender_receiver_threads(int sender_connfd, int receiver_connfd)
 {
@@ -306,7 +396,7 @@ void* receive_message(void *connfd)
 
 	pthread_exit(NULL);
 }
-
+*/
 caller_status_t map_user_status_to_caller(user_status_t status)
 {
 	switch(status)

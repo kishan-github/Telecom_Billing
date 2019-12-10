@@ -3,6 +3,7 @@
 
 #include <pthread.h>
 #include <database.h>
+#include <sys/wait.h>
 
 #define MAX_LEN 1000
 #define FREE "FREE"
@@ -47,10 +48,12 @@ void *subroutine(void * connfd);
 int get_user_input(int socket_fd, int caller_user_id);
 int create_call(int socket_fd, int caller_user_id);
 void get_status_string(user_status_t status, char *buffer);
-int create_sender_receiver_threads(int sender_connfd, int receiver_connfd);
-void* send_message(void *connfd);
-void* receive_message(void *connfd);
+int create_sender_receiver_threads();
+int send_message(int sender_connfd, int receiver_connfd);
+int receive_message(int pid, int sender_connfd, int receiver_connfd);
 caller_status_t map_user_status_to_caller(user_status_t status);
 int disconnect_user(int socket_fd, int caller_user_id);
+void terminate_self(int sig_no);
+void wait_for_child_process_to_exit(int sig_no);
 
 #endif
