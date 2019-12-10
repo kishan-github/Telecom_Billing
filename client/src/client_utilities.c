@@ -3,14 +3,6 @@
 
 // Variable to store the socket id of the link.
 int socket_fd = 0;
-bool is_call_connected = false;
-caller_status_t caller_status = CALLER_UNKNOWN;
-
-// Mutex and condition variables.
-pthread_mutex_t call_connected_mutex;
-pthread_mutex_t called_number_status_mutex;
-pthread_cond_t call_connected_cond;
-pthread_cond_t called_number_status_cond;
 
 // Initialize the objects.
 int init(char *argv)
@@ -19,30 +11,6 @@ int init(char *argv)
 	if(create_socket(argv, &socket_fd) == FAILURE)
 	{
 		printf("\nSocket creation failed.");
-		return FAILURE;
-	}
-
-	if(pthread_mutex_init(&call_connected_mutex, NULL) != 0)
-	{
-		printf("\ncall_connected_mutex initialization failed");
-		return FAILURE;
-	}
-
-	if(pthread_mutex_init(&called_number_status_mutex, NULL) != 0)
-	{
-		printf("\ncall_connected_mutex initialization failed");
-		return FAILURE;
-	}
-
-	if(pthread_cond_init(&call_connected_cond, NULL) != 0)
-	{
-		printf("\ncall_connected_mutex initialization failed");
-		return FAILURE;
-	}
-
-	if(pthread_cond_init(&called_number_status_cond, NULL) != 0)
-	{
-		printf("\ncall_connected_mutex initialization failed");
 		return FAILURE;
 	}
 
@@ -192,10 +160,6 @@ int receive_status()
 	READ(socket_fd, buffer);
 	status = atoi(buffer);
 	printf("\nStatus received = %d", status);
-	lock_status_mutex();
-	caller_status = status;
-	pthread_cond_signal(&called_number_status_cond);
-	unlock_status_mutex();
 
 	return SUCCESS;
 }
