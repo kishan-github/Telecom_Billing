@@ -34,19 +34,20 @@ int start_client_app(char *ph_no)
 
 	do
 	{
+		// Create a process to handle user input and server response.
 		pid = fork();
 		if(pid == 0)
 		{
 			pid = fork();
 
-			if(pid == 0)
+			if(pid == 0)	// To handle server response.
 			{
 				//child
 				signal(SIGUSR1, terminate_process);
 				get_server_reponse();
 
 			}
-			else if(pid > 0)
+			else if(pid > 0)	// To handle user input.
 			{
 				// parent
 				signal(SIGUSR1, terminate_process);
@@ -57,7 +58,7 @@ int start_client_app(char *ph_no)
 				printf("Process creation failed.");
 			}
 		}
-		client_app_process_id = getpid();
+		client_app_process_id = getpid();	// Store the process id of parent process which will be used during switch off case.
 		signal(SIGUSR1, terminate_process);
 		wait(NULL);
 	}while(1);
@@ -65,10 +66,12 @@ int start_client_app(char *ph_no)
 	exit(0);
 }
 
+// Add the number in the database.
 int register_with_server(char *ph_no)
 {
 	char buffer[MAX_LEN];
 
+	// Check if the number is valid or not.
 	if(validate_number(ph_no) == FAILURE)
 		return FAILURE;
 
@@ -78,6 +81,7 @@ int register_with_server(char *ph_no)
 	return SUCCESS;
 }
 
+// Check the validity of the number.
 int validate_number(char *ph_no)
 {
 	int i = 0;
@@ -100,6 +104,7 @@ int validate_number(char *ph_no)
 	return SUCCESS;
 }
 
+// Wait for the server response.
 int get_server_reponse(void)
 {
 	char buffer[MAX_LEN];
@@ -130,6 +135,7 @@ int get_server_reponse(void)
 	exit(0);
 }
 
+// Receive the call request from the server.
 int receive_call()
 {
 	int pid = 0;
@@ -147,6 +153,7 @@ int receive_call()
 	return SUCCESS;
 }
 
+// Accept the call request. Note - Currently all calls are accepted by default.
 int accept_call_request()
 {
 	char buffer[MAX_LEN];
@@ -160,6 +167,7 @@ int accept_call_request()
 	return SUCCESS;
 }
 
+// Receive the status of the number.
 int receive_status()
 {
 	char buffer[MAX_LEN];
@@ -172,6 +180,7 @@ int receive_status()
 	return SUCCESS;
 }
 
+// Wait for user input.
 void select_option(int pid)
 {
 	int option = 0;
@@ -218,6 +227,7 @@ void select_option(int pid)
 	}
 }
 
+// Terminate the client app.
 int switch_off()
 {
 	char buffer[MAX_LEN];
@@ -230,6 +240,7 @@ int switch_off()
 	return SUCCESS;
 }
 
+// Setup the call.
 int make_a_call()
 {
 	int pid = 0;
@@ -253,15 +264,18 @@ int make_a_call()
 	strcpy(buffer, calling_number);
 	WRITE(socket_fd, buffer);
 
+	// Receive the status of the called number.
 	READ(socket_fd, buffer);
 	status = atoi(buffer);
 
+	// Display the appropriate error message.
 	if(status != CALLER_AVAILABLE)
 	{
 		display_status_message(status);
 		return FAILURE;
 	}
 
+	// Create master process for handling send and receive.
 	pid = fork();
 	if(pid == 0)
 	{
@@ -314,14 +328,12 @@ int create_sender_receiver_threads()
 	if(pid == 0)
 	{
 		//child
-		printf("\nsend message pid = %d", getpid());
 		signal(SIGUSR1, notify_server_and_terminate_process);
 		send_message();
 	}
 	else if(pid > 0)
 	{
 		// parent
-		printf("\nreceive message pid = %d", getpid());
 		signal(SIGUSR1, notify_server_and_terminate_process);
 		receive_message(pid);
 	}
@@ -333,6 +345,7 @@ int create_sender_receiver_threads()
 	return SUCCESS;
 }
 
+// Send messages to server.
 int send_message(void)
 {
 	char buffer[MAX_LEN];
@@ -353,6 +366,7 @@ int send_message(void)
 	exit(0);
 }
 
+// Receive messages from server.
 int receive_message(int pid)
 {
 	char buffer[MAX_LEN];
