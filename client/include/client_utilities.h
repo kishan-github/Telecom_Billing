@@ -53,10 +53,7 @@ void unlock_status_mutex();
 int create_sender_receiver_threads();
 int send_message(void);
 int receive_message(int pid);
-void terminate_self(int sig_no);
-void terminate_server_response_process(int sig_no);
-void terminate_user_input_process(int sig_no);
-void wait_for_child_process_to_exit(int sig_no);
-void terminate_client_app_process(int sig_no);
+void terminate_process(int sig_no);
+void notify_server_and_terminate_process(int sig_no);
 
 #endif

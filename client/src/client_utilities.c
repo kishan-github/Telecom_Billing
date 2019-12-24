@@ -42,14 +42,14 @@ int start_client_app(char *ph_no)
 			if(pid == 0)
 			{
 				//child
-				signal(SIGUSR1, terminate_server_response_process);
+				signal(SIGUSR1, terminate_process);
 				get_server_reponse();
 
 			}
 			else if(pid > 0)
 			{
 				// parent
-				signal(SIGUSR1, terminate_user_input_process);
+				signal(SIGUSR1, terminate_process);
 				select_option(pid);
 			}
 			else
@@ -58,7 +58,7 @@ int start_client_app(char *ph_no)
 			}
 		}
 		client_app_process_id = getpid();
-		signal(SIGUSR1, terminate_client_app_process);
+		signal(SIGUSR1, terminate_process);
 		wait(NULL);
 	}while(1);
 
@@ -315,14 +315,14 @@ int create_sender_receiver_threads()
 	{
 		//child
 		printf("\nsend message pid = %d", getpid());
-		signal(SIGUSR1, terminate_self);
+		signal(SIGUSR1, notify_server_and_terminate_process);
 		send_message();
 	}
 	else if(pid > 0)
 	{
 		// parent
 		printf("\nreceive message pid = %d", getpid());
-		signal(SIGUSR1, wait_for_child_process_to_exit);
+		signal(SIGUSR1, notify_server_and_terminate_process);
 		receive_message(pid);
 	}
 	else
@@ -371,41 +371,19 @@ int receive_message(int pid)
 	exit(0);
 }
 
-void terminate_self(int sig_no)
+// This method notify the server to that call is finished and kill the current process.
+void notify_server_and_terminate_process(int sig_no)
 {
 	char buffer[MAX_LEN];
 
-	//printf("Signal received for ending call. pid = %d", getpid());
+	wait(NULL);	// Wait for all the child process to finish.
 	strcpy(buffer, EXIT);
-	write(socket_fd, buffer, sizeof(buffer));
+	write(socket_fd, buffer, sizeof(buffer));	//Notify server to dismiss call.
 	exit(0);
 }
 
-void terminate_server_response_process(int sig_no)
-{
-	//printf("Signal received for ending call. pid = %d", getpid());
-	exit(0);
-}
-
-void terminate_user_input_process(int sig_no)
-{
-	//printf("Signal received for ending call. pid = %d", getpid());
-	wait(NULL);
-	exit(0);
-}
-
-void wait_for_child_process_to_exit(int sig_no)
-{
-	char buffer[MAX_LEN];
-
-	//printf("Wait for child process to exit. pid = %d", getpid());
-	wait(NULL);
-	strcpy(buffer, EXIT);
-	write(socket_fd, buffer, sizeof(buffer));
-	exit(0);
-}
-
-void terminate_client_app_process(int sig_no)
+// This method terminates the current process.
+void terminate_process(int sig_no)
 {
 	wait(NULL);
 	exit(0);
