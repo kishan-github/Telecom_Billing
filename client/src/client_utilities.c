@@ -3,6 +3,13 @@
 
 // Variable to store the socket id of the link.
 int socket_fd = 0;
+int client_app_process_id = 0;
+
+// Mutex and condition variables.
+pthread_mutex_t call_connected_mutex;
+pthread_mutex_t called_number_status_mutex;
+pthread_cond_t call_connected_cond;
+pthread_cond_t called_number_status_cond;
 
 // Initialize the objects.
 int init(char *argv)
@@ -35,14 +42,14 @@ int start_client_app(char *ph_no)
 			if(pid == 0)
 			{
 				//child
-				signal(SIGUSR1, terminate_self);
+				signal(SIGUSR1, terminate_server_response_process);
 				get_server_reponse();
 
 			}
 			else if(pid > 0)
 			{
 				// parent
-				signal(SIGUSR1, wait_for_child_process_to_exit);
+				signal(SIGUSR1, terminate_user_input_process);
 				select_option(pid);
 			}
 			else
@@ -50,7 +57,8 @@ int start_client_app(char *ph_no)
 				printf("Process creation failed.");
 			}
 		}
-
+		client_app_process_id = getpid();
+		signal(SIGUSR1, terminate_client_app_process);
 		wait(NULL);
 	}while(1);
 
@@ -217,6 +225,8 @@ int switch_off()
 	sprintf(buffer, "%d", SWITCH_OFF);
 	WRITE(socket_fd, buffer);
 
+	kill(client_app_process_id, SIGUSR1);
+
 	return SUCCESS;
 }
 
@@ -363,16 +373,44 @@ int receive_message(int pid)
 
 void terminate_self(int sig_no)
 {
+	char buffer[MAX_LEN];
+
 	//printf("Signal received for ending call. pid = %d", getpid());
+	strcpy(buffer, EXIT);
+	write(socket_fd, buffer, sizeof(buffer));
+	exit(0);
+}
+
+void terminate_server_response_process(int sig_no)
+{
+	//printf("Signal received for ending call. pid = %d", getpid());
+	exit(0);
+}
+
+void terminate_user_input_process(int sig_no)
+{
+	//printf("Signal received for ending call. pid = %d", getpid());
+	wait(NULL);
 	exit(0);
 }
 
 void wait_for_child_process_to_exit(int sig_no)
 {
+	char buffer[MAX_LEN];
+
 	//printf("Wait for child process to exit. pid = %d", getpid());
+	wait(NULL);
+	strcpy(buffer, EXIT);
+	write(socket_fd, buffer, sizeof(buffer));
+	exit(0);
+}
+
+void terminate_client_app_process(int sig_no)
+{
 	wait(NULL);
 	exit(0);
 }
+
 #if 0
 void lock_call_mutex()
 {
