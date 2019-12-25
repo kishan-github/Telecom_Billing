@@ -5,12 +5,6 @@
 int socket_fd = 0;
 int client_app_process_id = 0;
 
-// Mutex and condition variables.
-pthread_mutex_t call_connected_mutex;
-pthread_mutex_t called_number_status_mutex;
-pthread_cond_t call_connected_cond;
-pthread_cond_t called_number_status_cond;
-
 // Initialize the objects.
 int init(char *argv)
 {
@@ -411,60 +405,3 @@ void terminate_process(int sig_no)
 	wait(NULL);
 	exit(0);
 }
-
-#if 0
-void lock_call_mutex()
-{
-	int result = 0;
-
-	result = pthread_mutex_lock(&call_connected_mutex);
-
-	/*if(result == 0)
-		printf("\ncall_connected_mutex mutex acquired");
-	else
-		printf("\ncall_connected_mutex mutex lock failed");*/
-}
-
-void unlock_call_mutex()
-{
-	int result = 0;
-
-	result = pthread_mutex_unlock(&call_connected_mutex);
-
-	/*if(result == 0)
-		printf("\ncall_connected_mutex mutex released");
-	else
-		printf("\ncall_connected_mutex unlock failed");*/
-}
-
-void remove_newline_from_string(char *str)
-{
-	char *pos = NULL;
-	if ((pos=strchr(str, '\n')) != NULL)
-	    *pos = '\0';
-}
-
-void lock_status_mutex()
-{
-	int result = 0;
-
-	result = pthread_mutex_lock(&called_number_status_mutex);
-
-	/*if(result == 0)
-		printf("\ncalled_number_status_mutex mutex acquired");
-	else
-		printf("\ncalled_number_status_mutex mutex lock failed");*/
-}
-
-void unlock_status_mutex()
-{
-	int result = 0;
-
-	result = pthread_mutex_unlock(&called_number_status_mutex);
-
-	/*if(result == 0)
-		printf("\ncalled_number_status_mutex mutex released");
-	else
-		printf("\ncalled_number_status_mutex unlock failed");*/
-}
-#endif
