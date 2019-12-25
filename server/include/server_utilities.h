@@ -42,12 +42,15 @@ typedef enum server_response{
 	RESPONSE_UNKNOWN
 }server_response_t;
 
+int init_mutex_cond_variables();
+int deinit_mutex_cond_variables();
 int start_server();
 void *subroutine(void * connfd);
 int get_user_input(int socket_fd, int caller_user_id);
+int check_user_call_accept_status(int caller_user_id);
 int create_call(int socket_fd, int caller_user_id);
 void get_status_string(user_status_t status, char *buffer);
-int create_sender_receiver_threads(int sender_connfd, int receiver_connfd);
+int create_sender_receiver_threads(int sender_connfd, int receiver_connfd, int receiver_user_id);
 void* send_message(void *connfd);
 void* receive_message(void *connfd);
 caller_status_t map_user_status_to_caller(user_status_t status);

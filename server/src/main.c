@@ -39,6 +39,13 @@ int main(int argc, char *argv[])
 
 	deinit_database();
 
+        // Deinit mutex and condition variables.
+	if(deinit_mutex_cond_variables() == FAILURE)
+	{
+		PRINT("Mutex/Condition deinit failed.");
+		return 0;
+	}
+
 	// Close the socket before finishing.
 	close(socket_fd);
 	mysql_close(mysql);
@@ -51,6 +58,12 @@ void handle_sigint(int sig)
     printf("Caught signal %d\n", sig);
 
     deinit_database();
+
+    // Deinit mutex and condition variables.
+    if(deinit_mutex_cond_variables() == FAILURE)
+    {
+	    PRINT("Mutex/Condition deinit failed.");
+    }
 
     // Close the socket before finishing.
     close(socket_fd);

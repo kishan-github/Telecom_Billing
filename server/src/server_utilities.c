@@ -4,6 +4,36 @@
 
 extern int socket_fd;
 
+// Mutex and condition variables.
+pthread_mutex_t call_connected_mutex[MAX_CLIENT];
+pthread_cond_t call_connected_cond[MAX_CLIENT];
+
+// Initialize the mutex and condition variables.
+int init_mutex_cond_variables()
+{
+	int idx = 0;
+
+	for(idx = 0; idx < MAX_CLIENT; idx++)
+	{
+		pthread_mutex_init(&call_connected_mutex[idx], NULL);
+		pthread_cond_init(&call_connected_cond[idx], NULL);
+	}
+	return SUCCESS;
+}
+
+// Deinit the mutex and condition variables.
+int deinit_mutex_cond_variables()
+{
+	int idx = 0;
+
+	for(idx = 0; idx < MAX_CLIENT; idx++)
+	{
+		pthread_mutex_destroy(&call_connected_mutex[idx]);
+		pthread_cond_destroy(&call_connected_cond[idx]);
+	}
+	return SUCCESS;
+}
+
 // Start the server.
 int start_server()
 {
@@ -13,6 +43,13 @@ int start_server()
 	struct 	sockaddr_in client_addr;
 	socklen_t address_length;
 	pthread_t tid[MAX_CLIENT];
+
+        // initialize mutex and condition variables.
+	if(init_mutex_cond_variables() == FAILURE)
+	{
+		PRINT("Mutex/Condition initialization failed.");
+		return FAILURE;
+	}
 
 	// Keep running the server.
 	while(1)
@@ -89,6 +126,7 @@ void *subroutine(void * connfd)
 	pthread_exit(NULL);
 }
 
+// Receive the user request.
 int get_user_input(int socket_fd, int caller_user_id)
 {
 	char buffer[MAX_LEN];
@@ -122,7 +160,7 @@ int get_user_input(int socket_fd, int caller_user_id)
 			case ACCEPT_CALL:
 			{
 				printf("\nUser accepted the call.");
-				while(1);
+				check_user_call_accept_status(caller_user_id);
 			}
 			default:
 				break;
@@ -132,6 +170,17 @@ int get_user_input(int socket_fd, int caller_user_id)
 	return SUCCESS;
 }
 
+// This method waits for the call to finish.
+int check_user_call_accept_status(int caller_user_id)
+{
+	pthread_mutex_lock(&call_connected_mutex[caller_user_id]);
+	pthread_cond_wait(&call_connected_cond[caller_user_id], &call_connected_mutex[caller_user_id]);
+	pthread_mutex_unlock(&call_connected_mutex[caller_user_id]);
+
+	return SUCCESS;
+}
+
+// Setup the call.
 int create_call(int socket_fd, int caller_user_id)
 {
 	user_status_t status = USER_UNKNOWN;
@@ -146,10 +195,6 @@ int create_call(int socket_fd, int caller_user_id)
 
 	// Get the number user wants to call.
 	READ(socket_fd, calling_number);
-
-	// Send the status to caller about the calling number.
-	//sprintf(buffer, "%d", RECEIVE_STATUS);
-	//WRITE(socket_fd, buffer);
 
 	// Get the user id of the calling number.
 	if(get_user_id(calling_number, &receiver_user_id) != SUCCESS)
@@ -192,7 +237,11 @@ int create_call(int socket_fd, int caller_user_id)
 		WRITE(receiver_connfd, buffer);
 
 		// Create thread for sending and receiving messages.
-		create_sender_receiver_threads(socket_fd, receiver_connfd);
+		create_sender_receiver_threads(socket_fd, receiver_connfd, receiver_user_id);
+
+		// Set receiver and caller status to available as call is finished.
+		set_user_status(receiver_user_id, USER_AVAILABLE);
+		set_user_status(caller_user_id, USER_AVAILABLE);
 	}
 	else
 	{
@@ -203,6 +252,7 @@ int create_call(int socket_fd, int caller_user_id)
 	return SUCCESS;
 }
 
+// Map the user status string.
 void get_status_string(user_status_t status, char *buffer)
 {
 	switch(status)
@@ -225,7 +275,7 @@ void get_status_string(user_status_t status, char *buffer)
 }
 
 // Create threads for sending and receiving data.
-int create_sender_receiver_threads(int sender_connfd, int receiver_connfd)
+int create_sender_receiver_threads(int sender_connfd, int receiver_connfd, int receiver_user_id)
 {
 	pthread_t thread_id_send;
 	pthread_t thread_id_receive;
@@ -252,6 +302,12 @@ int create_sender_receiver_threads(int sender_connfd, int receiver_connfd)
 
 	pthread_join(thread_id_send,NULL);
 	pthread_join(thread_id_receive,NULL);
+
+	// Notify the thread waiting for call to finish.
+	pthread_mutex_lock(&call_connected_mutex[receiver_user_id]);
+	pthread_cond_signal(&call_connected_cond[receiver_user_id]);
+	pthread_mutex_unlock(&call_connected_mutex[receiver_user_id]);
+
 	return SUCCESS;
 }
 
