@@ -13,8 +13,6 @@ extern pthread_cond_t called_number_status_cond;
 // Main function.
 int main(int argc, char *argv[])
 {
-	printf("\n /************** Client Window ***************/");
-
 	if(argc != 3)
 	{
 		printf("\nEnter proper command line arguments.");

@@ -32,6 +32,9 @@ int start_client_app(char *ph_no)
 	if(register_with_server(ph_no) == FAILURE)
 		return FAILURE;
 
+	client_app_process_id = getpid();	// Store the process id of parent process which will be used during switch off case.
+	signal(SIGUSR1, terminate_process);
+
 	do
 	{
 		// Create a process to handle user input and server response.
@@ -52,18 +55,16 @@ int start_client_app(char *ph_no)
 				// parent
 				signal(SIGUSR1, terminate_process);
 				select_option(pid);
+				kill(getpid(), SIGUSR1);
 			}
 			else
 			{
 				printf("Process creation failed.");
 			}
 		}
-		client_app_process_id = getpid();	// Store the process id of parent process which will be used during switch off case.
-		signal(SIGUSR1, terminate_process);
 		wait(NULL);
 	}while(1);
-
-	exit(0);
+	kill(getpid(), SIGUSR1);
 }
 
 // Add the number in the database.
@@ -132,7 +133,9 @@ int get_server_reponse(void)
 		default:
 			printf("\nUnknown response from server.");
 	}
-	exit(0);
+
+	kill(getpid(), SIGUSR1);
+	return SUCCESS;
 }
 
 // Receive the call request from the server.
@@ -334,7 +337,7 @@ int create_sender_receiver_threads()
 	else if(pid > 0)
 	{
 		// parent
-		signal(SIGUSR1, notify_server_and_terminate_process);
+		signal(SIGUSR2, notify_server_and_terminate_process);
 		receive_message(pid);
 	}
 	else
@@ -358,11 +361,10 @@ int send_message(void)
 		WRITE(socket_fd, buffer);
 		if(!strcmp(buffer, EXIT))
 		{
-			kill(getppid(), SIGUSR1);
+			kill(getppid(), SIGUSR2);
 			break;
 		}
 	}
-
 	exit(0);
 }
 
@@ -381,7 +383,6 @@ int receive_message(int pid)
 		}
 		printf("\nMessage received : %s", buffer);
 	}
-
 	exit(0);
 }
 
@@ -391,8 +392,16 @@ void notify_server_and_terminate_process(int sig_no)
 	char buffer[MAX_LEN];
 
 	wait(NULL);	// Wait for all the child process to finish.
-	strcpy(buffer, EXIT);
-	write(socket_fd, buffer, sizeof(buffer));	//Notify server to dismiss call.
+
+	if(sig_no == SIGUSR1)
+	{
+		strcpy(buffer, EXIT);
+		write(socket_fd, buffer, sizeof(buffer));	//Notify server to dismiss call.
+	}
+	else if(sig_no == SIGUSR2)
+	{
+		read(socket_fd, buffer, sizeof(buffer));	//Receive the garbage message.
+	}
 	exit(0);
 }
 
