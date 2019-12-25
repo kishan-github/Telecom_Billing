@@ -193,39 +193,37 @@ void select_option(int pid)
 	printf("\n1 : To make a call");
 	printf("\n0 : Exit");
 
-	do
+	while(1)
 	{
+		printf("\nEnter your option : ");
 		input = scanf("%d", &option);
-		printf("entered input = %d", option);
 
 		if(input != 1)
 		{
 			printf("\nNon numeric input is not allowed.");
 			while(getchar() != '\n');
+			continue;
 		}
-		else
-			break;
-	}while(1);
 
-	switch(option)
-	{
-		case 0:
+		switch(option)
 		{
-			printf("\nExiting....");
-			kill(pid, SIGUSR1);
-			switch_off();
-			break;
-		}
-		case 1:
-		{
-			kill(pid, SIGUSR1);
-			make_a_call();
-			break;
-		}
-		default:
-		{
-			printf("\nPlease enter valid option.");
-			break;
+			case 0:
+			{
+				kill(pid, SIGUSR1);
+				switch_off();
+				return;
+			}
+			case 1:
+			{
+				kill(pid, SIGUSR1);
+				make_a_call();
+				return;
+			}
+			default:
+			{
+				printf("\nPlease enter valid option.");
+				break;
+			}
 		}
 	}
 }
@@ -234,6 +232,8 @@ void select_option(int pid)
 int switch_off()
 {
 	char buffer[MAX_LEN];
+
+	printf("\nExiting....");
 
 	sprintf(buffer, "%d", SWITCH_OFF);
 	WRITE(socket_fd, buffer);

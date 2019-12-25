@@ -147,7 +147,6 @@ int get_user_input(int socket_fd, int caller_user_id)
 				{
 					PRINT("Failed in create_call");
 					set_user_status(caller_user_id, USER_AVAILABLE);
-					return FAILURE;
 				}
 				break;
 			}
